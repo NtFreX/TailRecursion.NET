@@ -1,7 +1,5 @@
 # TailRecursion.NET
 
-This library enables you to optimize tail recursion functions so no stackoverflow exception will be thrown.
-
 The following code will throw an stackoverflow exception.
 
     private static uint Fac(uint n)
@@ -13,9 +11,7 @@ The following code will throw an stackoverflow exception.
     
     Fac(123212);
 
-This library gives you two options to optimize this function.
-
-**Non generic version**
+**Tail recursion optimized:**
 
     var facOptimized = new TailRecursionBuilder()
         .AddArgument<uint>("acc")
@@ -30,8 +26,8 @@ This library gives you two options to optimize this function.
         });
             
     Console.WriteLine(facOptimized.Run(1, 123212));
-       
-**Generic version** 
+
+**Recursion optimized:**
        
     var facOptimizedGeneric = new Generics.TailRecursionFunc<uint, uint>(async (context, n) =>
     {
@@ -41,5 +37,3 @@ This library gives you two options to optimize this function.
     }).Compile();
     
     Console.WriteLine(await facOptimizedGeneric(123212));
-
-*At the current state of this library the generic approach is a lot slower then the other because of the use of `DynamicInvoke`.*

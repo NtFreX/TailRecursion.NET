@@ -1,12 +1,12 @@
 ﻿using System;
-using System.Threading.Tasks;
+using System.Diagnostics;
+using TailRecursion.NET.Generics;
 
 namespace TailRecursion.NET.Demo
 {
     public class Program
     {
-        //TODO: dynamic invoke makes this very slow
-        //TODO: benchmarks
+        //TODO: real benchmarks
         public static void Main(string[] args)
         {
             uint input = 123212;
@@ -23,32 +23,46 @@ namespace TailRecursion.NET.Demo
 
                     if (n < 2) return acc;
                     return context.Self.Invoke(new object[] { n * acc, n - 1 });
-                });
+                });            
 
-            var facOptimizedGeneric = new Generics.TailRecursionFunc<uint, uint>(FacOptimized).Compile();
+            var facOptimizedGeneric = new RecursionFunc<uint, uint>(async (context, n) =>
+            {
+                if (n < 2) return 1;
+                uint acc = await context.Self(n - 1);
+                return n * acc;
+            }).Compile();
+
+            Func<uint, uint> nonOptimizd = null;
+            nonOptimizd = new Func<uint, uint>((uint n) =>
+            {
+                if (n < 2) return 1;
+                uint acc = nonOptimizd(n - 1);
+                return n * acc;
+            });
 
             // => no stackoverflow exception expected
-            Console.WriteLine(facOptimized.Run(1, input));
+            var time = Measure("Optimized", () => facOptimized.Run(1, input));
             // => no stackoverflow exception expected
-            Console.WriteLine(facOptimizedGeneric(input).GetAwaiter().GetResult());
+            var timeGeneric = Measure("Generic Optimized", () => facOptimizedGeneric(input).GetAwaiter().GetResult());
             // => stackoverflow exception expected
-            Console.WriteLine(Fac(input));
+            //Measure("Non Optimized", () => nonOptimizd(input));
+
+            Console.WriteLine($"{timeGeneric.TotalSeconds / time.TotalSeconds}");
 
             Console.ReadLine();
         }
 
-        private static async Task<uint> FacOptimized(Generics.TailRecursionContext<Func<uint, Task<uint>>> context, uint n)
+        private static TimeSpan Measure<T>(string name, Func<T> action)
         {
-            if (n < 2) return 1;
-            uint acc = await context.Self(n - 1);
-            return n * acc;
-        }
+            var stopWatch = new Stopwatch();
+            stopWatch.Start();
 
-        private static uint Fac(uint n)
-        {
-            if (n < 2) return 1;
-            uint acc = Fac(n - 1);
-            return n * acc;
+            var result = action();
+            var time = stopWatch.Elapsed;
+
+            Console.WriteLine($"{name}: {result} in {time.TotalSeconds}s");
+
+            return time;
         }
     }
 }

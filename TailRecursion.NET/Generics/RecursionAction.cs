@@ -5,36 +5,41 @@ using System.Threading.Tasks;
 
 namespace TailRecursion.NET.Generics
 {
-    public class TailRecursionAction : TailRecursionActionBase
+    public class RecursionAction : RecursionActionBase
     {
-        private readonly TailRecursionContext<Action> _context;
+        private readonly RecursionContext<Func<Task>> _context;
+        private readonly Func<RecursionContext<Func<Task>>, Task> _fnc;
 
-        public TailRecursionAction(Action<TailRecursionContext<Action>> fnc)
-            : base(fnc)
+        public RecursionAction(Func<RecursionContext<Func<Task>>, Task> fnc)
         {
-            _context = new TailRecursionContext<Action>(Self);
+            _context = new RecursionContext<Func<Task>>(Self);
+            _fnc = fnc;
         }
 
         public Func<Task> Compile()
         {
             return new Func<Task>(() =>
             {
-                return Run(new object[] { _context });
+                return Run(new object[] { });
             });
         }
 
-        private void Self()
-            => Self(_context);
+        protected override Task Invoke(object[] args)
+            => _fnc.Invoke(_context);
+
+        private Task Self()
+            => base.Self();
     }
 
-    public class TailRecursionAction<T> : TailRecursionActionBase
+    public class RecursionAction<T> : RecursionActionBase
     {
-        private readonly TailRecursionContext<Action<T>> _context;
-        
-        public TailRecursionAction(Action<TailRecursionContext<Action<T>>, T> fnc)
-            : base(fnc)
+        private readonly RecursionContext<Func<T, Task>> _context;
+        private readonly Func<RecursionContext<Func<T, Task>>, T, Task> _fnc;
+
+        public RecursionAction(Func<RecursionContext<Func<T, Task>>, T, Task> fnc)
         {
-            _context = new TailRecursionContext<Action<T>>(Self);
+            _context = new RecursionContext<Func<T, Task>>(Self);
+            _fnc = fnc;
         }
 
         public Func<T, Task> Compile()
@@ -45,18 +50,22 @@ namespace TailRecursion.NET.Generics
             });
         }
 
-        private void Self(T arg)
-            => Self(_context, arg);
+        protected override Task Invoke(object[] args)
+            => _fnc.Invoke(_context, (T)args[0]);
+
+        private Task Self(T arg)
+            => base.Self(arg);
     }
 
-    public class TailRecursionAction<T, T1> : TailRecursionActionBase
+    public class RecursionAction<T, T1> : RecursionActionBase
     {
-        private readonly TailRecursionContext<Action<T, T1>> _context;
-        
-        public TailRecursionAction(Action<TailRecursionContext<Action<T, T1>>, T, T1> fnc)
-            : base(fnc)
+        private readonly RecursionContext<Func<T, T1, Task>> _context;
+        private readonly Func<RecursionContext<Func<T, T1, Task>>, T, T1, Task> _fnc;
+
+        public RecursionAction(Func<RecursionContext<Func<T, T1, Task>>, T, T1, Task> fnc)
         {
-            _context = new TailRecursionContext<Action<T, T1>>(Self);
+            _context = new RecursionContext<Func<T, T1, Task>>(Self);
+            _fnc = fnc;
         }
 
         public Func<T, T1, Task> Compile()
@@ -67,30 +76,31 @@ namespace TailRecursion.NET.Generics
             });
         }
 
-        private void Self(T arg, T1 arg1)
-            => Self(_context, arg, arg1);
+        protected override Task Invoke(object[] args)
+            => _fnc.Invoke(_context, (T)args[0], (T1)args[1]);
+
+        private Task Self(T arg, T1 arg1)
+            => base.Self(arg, arg1);
     }
 
-    //TODO: remove base class to get rid of dynamic invoke?
-    //TODO: task compleation source without result...
-    public abstract class TailRecursionActionBase
+    //TODO: remove base class to get rid of casting/boxing invoke?
+    //TODO: task compleation source without result is ugly but seems to way to go
+    public abstract class RecursionActionBase
     {
-        protected readonly Delegate Fnc;
-
         protected readonly AutoResetEvent ActionEvent;
         protected readonly Stack<TaskCompletionSource<object>> ResultStack;
         protected readonly Stack<Task> TaskStack;
 
         private object[] _args;
 
-        public TailRecursionActionBase(Delegate fnc)
+        public RecursionActionBase()
         {
             ResultStack = new Stack<TaskCompletionSource<object>>();
             TaskStack = new Stack<Task>();
             ActionEvent = new AutoResetEvent(true);
-
-            Fnc = fnc;
         }
+
+        protected abstract Task Invoke(object[] args);
 
         protected Task Run(object[] args)
         {
@@ -100,7 +110,7 @@ namespace TailRecursion.NET.Generics
             {
                 if (ActionEvent.WaitOne(0))
                 {
-                    var task = (Task)Fnc.DynamicInvoke(_args);
+                    var task = Invoke(_args);
                     TaskStack.Push(task);
                 }
                 else if (TaskStack.Peek().IsCompleted)

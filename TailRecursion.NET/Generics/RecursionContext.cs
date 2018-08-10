@@ -1,10 +1,10 @@
 ﻿namespace TailRecursion.NET.Generics
 {
-    public class TailRecursionContext<T>
+    public class RecursionContext<T>
     {
         public T Self { get; }
 
-        public TailRecursionContext(T self)
+        public RecursionContext(T self)
         {
             Self = self;
         }
