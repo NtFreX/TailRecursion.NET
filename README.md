@@ -29,7 +29,7 @@ The following code will throw an stackoverflow exception.
 
 **Recursion optimized:**
        
-    var facOptimizedGeneric = new Generics.TailRecursionFunc<uint, uint>(async (context, n) =>
+    var facOptimizedGeneric = new RecursionFunc<uint, uint>(async (context, n) =>
     {
         if (n < 2) return 1;
         uint acc = await context.Self(n - 1);
